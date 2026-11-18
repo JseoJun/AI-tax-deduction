@@ -1,62 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import OpenAI from 'openai';
-import { ColumnMappingResponseSchema } from '@/schemas';
-import { COLUMN_MAPPING_SYSTEM_PROMPT } from '@/lib/rag/prompts';
+import { RagPrecedentResponseSchema } from '@/schemas';
+import { searchHybridPrecedents } from '@/lib/rag/hybridSearch';
+import { RAG_SUMMARY_SYSTEM_PROMPT } from '@/lib/rag/prompts';
 
-const KEYWORD_DICTIONARY: Record<string, string[]> = {
-  employeeId: ['사번', '사원번호', '직원번호', 'id', 'empno'],
-  name: ['성명', '이름', '직원명', '성함'],
-  birthDate: ['생년월일', '생일', '주민번호', '주민등록번호'],
-  hireDate: ['입사일', '입사일자', '채용일', '채용일자', '근무시작일'],
-  resignDate: ['퇴사일', '퇴사일자', '퇴직일', '퇴직일자'],
-  contractType: ['계약형태', '고용형태', '근로형태', '직종구분', '고용구분'],
-  isExecutive: ['임원', '임원여부', '직책', '대주주'],
-  militaryMonths: ['병역', '병역기간', '군복무', '복무개월'],
-  specialFlag: ['특이사항', '휴직', '예외구분'],
-};
-
-function runKeywordFallback(headers: string[]) {
-  const mapping: Record<string, string> = {};
-  const confidence: Record<string, number> = {};
-
-  for (const header of headers) {
-    const normalized = header.replace(/\s+/g, '').toLowerCase();
-    let matchedKey = 'IGNORE';
-    for (const [stdKey, keywords] of Object.entries(KEYWORD_DICTIONARY)) {
-      if (keywords.some((kw) => normalized.includes(kw))) {
-        matchedKey = stdKey;
-        break;
-      }
-    }
-    mapping[header] = matchedKey;
-    confidence[header] = matchedKey === 'IGNORE' ? 0.0 : 0.85;
-  }
-
-  return { mapping, confidence };
-}
+const RequestSchema = z.object({
+  specialFlag: z.enum([
+    'PARENTAL_LEAVE',
+    'PART_TIME_PRO_RATA',
+    'BUSINESS_SUCCESSION',
+    'REHIRED_SAME_YEAR',
+  ]),
+  specialNote: z.string().optional(),
+  targetYear: z.number().int().min(2020).max(2035),
+  companySize: z.enum(['sme', 'middle']),
+});
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+    const reqParsed = RequestSchema.safeParse(body);
 
-    if (!body || !Array.isArray(body.headers) || body.headers.length === 0) {
+    if (!reqParsed.success) {
       return NextResponse.json(
-        { error: 'BAD_REQUEST', message: 'headers 배열은 최소 1개 이상의 문자열을 포함해야 합니다.' },
+        { error: 'BAD_REQUEST', message: '유효하지 않은 specialFlag 또는 요청 파라미터입니다.' },
         { status: 400 }
       );
     }
 
-    if (!body.headers.every((h: unknown) => typeof h === 'string')) {
-      return NextResponse.json(
-        { error: 'VALIDATION_ERROR', message: 'headers 항목은 모두 string 타입이어야 합니다.' },
-        { status: 422 }
-      );
+    const { specialFlag, specialNote, targetYear } = reqParsed.data;
+
+    // 1. 하이브리드 검색(메타데이터 필터 + BM25 + 벡터 RRF) 수행
+    const { exceptionReason, candidates } = await searchHybridPrecedents({
+      specialFlag,
+      specialNote,
+      targetYear,
+    });
+
+    if (candidates.length === 0) {
+      return NextResponse.json({ exceptionReason, precedents: [] });
     }
 
-    const headers: string[] = body.headers;
+    let finalPrecedents = candidates;
     const apiKey = process.env.OPENAI_API_KEY;
 
-    // API 키가 설정된 경우 LLM Structured Outputs 호출 (타임아웃 5,000ms)
+    // 2. API 키가 있으면 Closed-Book QA 방식으로 요약 정제 (원본 docId/citation 강제 유지)
     if (apiKey && apiKey !== 'your_openai_api_key_here') {
       try {
         const openai = new OpenAI({ apiKey });
@@ -66,37 +55,66 @@ export async function POST(req: NextRequest) {
             temperature: 0,
             response_format: { type: 'json_object' },
             messages: [
-              { role: 'system', content: COLUMN_MAPPING_SYSTEM_PROMPT },
-              { role: 'user', content: JSON.stringify({ headers }) },
+              { role: 'system', content: RAG_SUMMARY_SYSTEM_PROMPT },
+              {
+                role: 'user',
+                content: JSON.stringify({
+                  situation: specialNote ?? exceptionReason,
+                  retrievedPrecedents: candidates,
+                  outputFormat: {
+                    exceptionReason: 'string',
+                    precedents: [
+                      {
+                        docId: '원본 그대로 유지',
+                        title: '원본 그대로 유지',
+                        summary: '컨텍스트 근거 요약 (~하는 것이 타당함 형태)',
+                        relevanceScore: '원본 숫자 유지',
+                        citation: '원본 그대로 유지',
+                      },
+                    ],
+                  },
+                }),
+              },
             ],
           },
           { signal: AbortSignal.timeout(5000) }
         );
 
-        const rawText = completion.choices[0]?.message?.content ?? '{}';
-        const parsed = ColumnMappingResponseSchema.safeParse(JSON.parse(rawText));
+        const rawJson = JSON.parse(completion.choices[0]?.message?.content ?? '{}');
+        const llmValidated = RagPrecedentResponseSchema.safeParse(rawJson);
 
-        if (parsed.success) {
-          return NextResponse.json({
-            source: 'AI',
-            mapping: parsed.data.mapping,
-            confidence: parsed.data.confidence,
-          });
+        const allowedDocIds = new Set(candidates.map((c) => c.docId));
+        if (
+          llmValidated.success &&
+          llmValidated.data.precedents.every((p) => allowedDocIds.has(p.docId))
+        ) {
+          finalPrecedents = llmValidated.data.precedents;
         }
       } catch {
-        // AI 타임아웃 또는 응답 검증 실패 시 아래 키워드 Fallback으로 즉시 전환
+        // LLM 지연/오류 시 검증된 시드 예규 요약 그대로 반환
       }
     }
 
-    const fallback = runKeywordFallback(headers);
-    return NextResponse.json({
-      source: 'KEYWORD_FALLBACK',
-      mapping: fallback.mapping,
-      confidence: fallback.confidence,
+    // 3. 최종 응답 스키마 무결성 검증
+    const finalValidated = RagPrecedentResponseSchema.safeParse({
+      exceptionReason,
+      precedents: finalPrecedents,
     });
+
+    if (!finalValidated.success) {
+      return NextResponse.json(
+        {
+          error: 'RAG_SCHEMA_VIOLATION',
+          message: '검색된 예규의 인용 무결성 검증에 실패하여 결과를 차단했습니다.',
+        },
+        { status: 422 }
+      );
+    }
+
+    return NextResponse.json(finalValidated.data);
   } catch {
     return NextResponse.json(
-      { error: 'INTERNAL_SERVER_ERROR', message: '열 매핑 처리 중 서버 오류가 발생했습니다.' },
+      { error: 'RAG_RETRIEVAL_FAILED', message: '예규 지식베이스 검색 중 오류가 발생했습니다.' },
       { status: 500 }
     );
   }
