@@ -1,0 +1,9 @@
+{
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "bradlc.vscode-tailwindcss",
+    "vitest.explorer",
+    "usernamehw.errorlens",
+    "eamodio.gitlens"
+  ]
+}

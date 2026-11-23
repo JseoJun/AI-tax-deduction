@@ -42,3 +42,8 @@ next-env.d.ts
 
 # local UI previews (스크린샷 검수용, 커밋하지 않음)
 /.preview/
+
+# VS Code 로컬 설정 (이 PC 전용 경로가 들어감 · extensions.json 은 공유)
+/.vscode/launch.json
+/.vscode/tasks.json
+/.vscode/settings.json
