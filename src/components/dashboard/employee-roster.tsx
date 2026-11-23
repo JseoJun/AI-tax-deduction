@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -62,6 +63,7 @@ export function EmployeeRoster({
   onSearchPrecedent: (employee: EmployeeRecord) => void;
 }) {
   const [filter, setFilter] = useState<FilterKey>('ALL');
+  const [query, setQuery] = useState('');
 
   const judgmentById = useMemo(() => {
     const map = new Map<string, EmployeeJudgment>();
@@ -83,9 +85,17 @@ export function EmployeeRoster({
     return base;
   }, [employees.length, judgments]);
 
+  const normalizedQuery = query.trim().toLowerCase();
+
   const visible = employees.filter((employee) => {
-    if (filter === 'ALL') return true;
-    return judgmentById.get(employee.employeeId)?.category === filter;
+    if (filter !== 'ALL' && judgmentById.get(employee.employeeId)?.category !== filter) {
+      return false;
+    }
+    if (normalizedQuery === '') return true;
+    return (
+      employee.name.toLowerCase().includes(normalizedQuery) ||
+      employee.employeeId.toLowerCase().includes(normalizedQuery)
+    );
   });
 
   return (
@@ -108,6 +118,22 @@ export function EmployeeRoster({
           <p>해당 행은 명부에서 제외되었습니다. 엑셀 원본을 수정한 뒤 다시 업로드하세요.</p>
         </WarningBanner>
       ) : null}
+
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative w-full sm:w-64">
+          <Search className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            className="pl-7"
+            placeholder="성명 또는 사번 검색"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            aria-label="성명 또는 사번 검색"
+          />
+        </div>
+        <span className="text-xs text-muted-foreground">
+          {formatCount(visible.length)} 표시 중
+        </span>
+      </div>
 
       <div className="flex flex-wrap gap-1.5">
         {(

@@ -39,7 +39,7 @@ import { PostCarePanel } from './post-care-panel';
 import { PrecedentDrawer } from './precedent-drawer';
 import { RosterDiffPanel } from './roster-diff-panel';
 import { SimulationPanel } from './simulation-panel';
-import { LEGAL_REVIEW_LABEL, formatCount, formatWonShort } from './ui-bits';
+import { LEGAL_REVIEW_LABEL, WarningBanner, formatCount, formatWonShort } from './ui-bits';
 
 const TABS = [
   { value: 'company', label: '회사 정보', icon: Building2 },
@@ -124,10 +124,14 @@ export function GongjeRadarApp() {
     return () => clearTimeout(timer);
   }, [toast]);
 
-  const rule = useMemo(
-    () => findRule(company.targetYear, company.region, company.size) ?? DEFAULT_RULE,
+  const matchedRule = useMemo(
+    () => findRule(company.targetYear, company.region, company.size),
     [company.targetYear, company.region, company.size],
   );
+
+  // 선택한 조건(연도·지역·규모)에 맞는 규칙표가 없으면 기본 규칙으로 표시하되, 화면에 명시합니다.
+  const isFallbackRule = matchedRule === undefined;
+  const rule = matchedRule ?? DEFAULT_RULE;
 
   const result = useMemo(() => calculateCredits(company, employees, rule), [company, employees, rule]);
 
@@ -220,6 +224,19 @@ export function GongjeRadarApp() {
           <CheckCircle2 className="size-4" />
           {toast}
         </div>
+      ) : null}
+
+      {isFallbackRule ? (
+        <WarningBanner title="선택한 조건에 맞는 규칙 테이블이 없습니다" tone="warning">
+          <p>
+            {company.targetYear}년 · {company.region === 'capital' ? '수도권' : '비수도권'} ·{' '}
+            {company.size === 'sme' ? '중소기업' : '중견기업'} 조합의 규칙 데이터가 아직
+            없습니다. 화면 금액은 {rule.year}년 {rule.region === 'capital' ? '수도권' : '비수도권'}{' '}
+            · {rule.companySize === 'sme' ? '중소기업' : '중견기업'} 기준 기본 규칙으로 계산된
+            값입니다.
+          </p>
+          <p>회사 정보 탭에서 조건을 바꾸거나, 규칙 데이터가 보강된 뒤 다시 확인하세요.</p>
+        </WarningBanner>
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-3">
