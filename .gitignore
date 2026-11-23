@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local UI previews (스크린샷 검수용, 커밋하지 않음)
+/.preview/

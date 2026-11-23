@@ -80,7 +80,9 @@ export function GongjeRadarApp() {
     if (storedCompany) setCompany(storedCompany);
 
     const storedEmployees = loadEmployees();
-    if (storedEmployees) setEmployees(storedEmployees);
+    // localStorage 에 빈 배열이 저장돼 있을 수 있으므로 길이까지 확인합니다.
+    const hasStoredEmployees = Boolean(storedEmployees && storedEmployees.length > 0);
+    if (hasStoredEmployees && storedEmployees) setEmployees(storedEmployees);
     setPreviousRoster(loadPreviousRoster());
 
     // 데모용 딥링크: /?demo=1&tab=result 처럼 열면 샘플 27명으로 바로 확인할 수 있습니다.
@@ -88,7 +90,7 @@ export function GongjeRadarApp() {
     const isDemo = params.get('demo') === '1';
 
     if (isDemo) {
-      if (!storedEmployees) setEmployees(mockEmployees27);
+      if (!hasStoredEmployees) setEmployees(mockEmployees27);
       const firstSpecial = mockEmployees27.find((employee) => employee.specialFlag !== 'NONE');
       if (firstSpecial) {
         setSelectedEmployeeId(firstSpecial.employeeId);
