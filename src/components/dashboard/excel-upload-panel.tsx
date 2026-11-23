@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
-import { CheckCircle2, FileSpreadsheet, Loader2, Upload } from 'lucide-react';
+import { FileSpreadsheet, Loader2, Upload } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -29,7 +29,7 @@ import {
   type StandardField,
 } from '@/lib/excel';
 import type { EmployeeRecord } from '@/schemas';
-import { WarningBanner, formatCount } from './ui-bits';
+import { WarningBanner } from './ui-bits';
 
 const MAPPING_ITEMS: Record<string, string> = {
   employeeId: '사번 (employeeId)',
@@ -65,13 +65,11 @@ export function ExcelUploadPanel({
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
-  const [appliedCount, setAppliedCount] = useState<number | null>(null);
 
   async function handleFile(file: File) {
     setBusy(true);
     setError(null);
     setWarnings([]);
-    setAppliedCount(null);
     setParsed(null);
     setMapping({});
     setConfidence({});
@@ -130,13 +128,12 @@ export function ExcelUploadPanel({
     if (employees.length === 0) {
       setError('변환된 직원이 없습니다. 입사일·생년월일 매핑을 확인하세요.');
       setWarnings(buildWarnings);
-      setAppliedCount(0);
       return;
     }
 
     setError(null);
     setWarnings(buildWarnings);
-    setAppliedCount(employees.length);
+    // 성공 안내는 상위(앱)에서 토스트 + 명부 탭 배너로 보여줍니다.
     onApply(employees, buildWarnings);
   }
 
@@ -209,18 +206,6 @@ export function ExcelUploadPanel({
       {error ? (
         <WarningBanner title="진행할 수 없습니다" tone="danger">
           <p>{error}</p>
-        </WarningBanner>
-      ) : null}
-
-      {appliedCount !== null && appliedCount > 0 ? (
-        <WarningBanner title="직원 명부가 만들어졌습니다" tone="success">
-          <p>
-            {formatCount(appliedCount)}을 명부에 반영했습니다. ‘직원 명부’ 탭에서 판정 결과를
-            확인하세요.
-          </p>
-          {warnings.length > 0 ? (
-            <p>확인이 필요한 행 {warnings.length}건은 아래 목록에 표시됩니다.</p>
-          ) : null}
         </WarningBanner>
       ) : null}
 
@@ -320,9 +305,6 @@ export function ExcelUploadPanel({
               <b>{FIELD_LABELS.hireDate}</b>와 <b>{FIELD_LABELS.birthDate}</b>는 필수입니다.
             </p>
             <Button onClick={applyMapping} disabled={!canApply}>
-              {appliedCount != null && appliedCount > 0 ? (
-                <CheckCircle2 />
-              ) : null}
               이 매핑으로 직원 명부 만들기
             </Button>
           </div>
