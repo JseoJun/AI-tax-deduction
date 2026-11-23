@@ -78,7 +78,7 @@ export function RuleTableDialog({
           </InfoRow>
         </div>
 
-        <div className="overflow-hidden rounded-lg ring-1 ring-foreground/10">
+        <div className="overflow-x-auto rounded-lg ring-1 ring-foreground/10">
           <Table>
             <TableHeader>
               <TableRow>

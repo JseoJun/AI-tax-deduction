@@ -29,6 +29,7 @@ import {
   type StandardField,
 } from '@/lib/excel';
 import type { EmployeeRecord } from '@/schemas';
+import { validateMapping } from './mapping-validation';
 import { WarningBanner } from './ui-bits';
 
 const MAPPING_ITEMS: Record<string, string> = {
@@ -44,8 +45,6 @@ const MAPPING_ITEMS: Record<string, string> = {
   specialNote: '비고 (specialNote)',
   IGNORE: '사용 안 함 (IGNORE)',
 };
-
-const REQUIRED_FIELDS: StandardField[] = ['hireDate', 'birthDate'];
 
 type MappingSource = 'AI' | 'KEYWORD_FALLBACK';
 
@@ -97,24 +96,8 @@ export function ExcelUploadPanel({
     }
   }
 
-  const mappedFields = useMemo(
-    () => Object.values(mapping).filter((field) => field !== 'IGNORE'),
-    [mapping],
-  );
-
-  /** 같은 표준 필드에 두 개 이상의 열이 연결된 경우 (마지막 열만 반영됨) */
-  const duplicateTargets = useMemo(() => {
-    const grouped = new Map<string, string[]>();
-    for (const [header, field] of Object.entries(mapping)) {
-      if (field === 'IGNORE') continue;
-      grouped.set(field, [...(grouped.get(field) ?? []), header]);
-    }
-    return [...grouped.entries()].filter(([, headers]) => headers.length > 1);
-  }, [mapping]);
-
-  const missingRequired = REQUIRED_FIELDS.filter((field) => !mappedFields.includes(field));
-  const hasIdentifier = mappedFields.includes('name') || mappedFields.includes('employeeId');
-  const canApply = Boolean(parsed) && missingRequired.length === 0 && hasIdentifier;
+  const validation = useMemo(() => validateMapping(mapping, Boolean(parsed)), [mapping, parsed]);
+  const { duplicateTargets, missingRequired, hasIdentifier, canApply } = validation;
 
   function applyMapping() {
     if (!parsed) return;
@@ -137,7 +120,7 @@ export function ExcelUploadPanel({
     onApply(employees, buildWarnings);
   }
 
-  const mappedCount = mappedFields.length;
+  const mappedCount = validation.mappedFields.length;
 
   return (
     <div className="space-y-4">
@@ -243,7 +226,7 @@ export function ExcelUploadPanel({
             </WarningBanner>
           ) : null}
 
-          <div className="overflow-hidden rounded-xl ring-1 ring-foreground/10">
+          <div className="overflow-x-auto rounded-xl ring-1 ring-foreground/10">
             <Table>
               <TableHeader>
                 <TableRow>

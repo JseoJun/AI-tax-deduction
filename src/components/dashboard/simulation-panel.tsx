@@ -16,6 +16,7 @@ import type {
 import {
   EmptyState,
   StatCard,
+  VerificationNotice,
   WarningBanner,
   formatCount,
   formatWon,
@@ -121,6 +122,8 @@ export function SimulationPanel({
           화면입니다.
         </p>
       </WarningBanner>
+
+      <VerificationNotice isVerified={result.isRuleVerified} note={rule.verificationNote} />
 
       <div className="grid gap-4 rounded-xl bg-muted/40 p-4 sm:grid-cols-2 lg:grid-cols-4">
         <NumberField

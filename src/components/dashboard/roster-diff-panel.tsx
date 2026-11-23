@@ -16,6 +16,7 @@ import {
   EmptyState,
   SectionHeading,
   StatCard,
+  VerificationNotice,
   WarningBanner,
   formatCount,
   formatWon,
@@ -77,6 +78,11 @@ export function RosterDiffPanel({
       <SectionHeading
         title="직원 명부 변화 확인"
         description="직전 명부와 현재 명부를 비교합니다. 새 엑셀을 올릴 때마다 직전 명부가 자동 보관됩니다."
+      />
+
+      <VerificationNotice
+        isVerified={result.isRuleVerified}
+        note="금액 비교에 사용된 규칙 테이블이 아직 검수되지 않았습니다."
       />
 
       {!previousRoster ? (
@@ -153,7 +159,7 @@ export function RosterDiffPanel({
               description="직전 명부와 내용이 완전히 동일합니다."
             />
           ) : (
-            <div className="overflow-hidden rounded-xl ring-1 ring-foreground/10">
+            <div className="overflow-x-auto rounded-xl ring-1 ring-foreground/10">
               <Table>
                 <TableHeader>
                   <TableRow>

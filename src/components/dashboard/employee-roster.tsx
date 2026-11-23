@@ -131,7 +131,7 @@ export function EmployeeRoster({
         ))}
       </div>
 
-      <div className="overflow-hidden rounded-xl ring-1 ring-foreground/10">
+      <div className="overflow-x-auto rounded-xl ring-1 ring-foreground/10">
         <Table>
           <TableHeader>
             <TableRow>

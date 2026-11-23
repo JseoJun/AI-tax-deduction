@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  AlertTriangle,
   Building2,
   Calculator,
   CheckCircle2,
@@ -203,7 +202,6 @@ export function GongjeRadarApp() {
             <Badge variant="outline">규칙 검수 완료</Badge>
           ) : (
             <span className="inline-flex items-center rounded-md border border-amber-300/70 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
-              <AlertTriangle className="mr-1 size-3" />
               {LEGAL_REVIEW_LABEL}
             </span>
           )}
@@ -248,7 +246,7 @@ export function GongjeRadarApp() {
         onValueChange={(value) => setTab((value as TabValue) ?? 'company')}
         className="gap-4"
       >
-        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 p-1">
+        <TabsList className="flex h-auto! min-h-8 w-full flex-wrap justify-start gap-1 p-1">
           {TABS.map((item) => {
             const Icon = item.icon;
             return (
