@@ -55,7 +55,7 @@ export function WarningBanner({
 }: {
   title: string;
   children?: ReactNode;
-  tone?: 'warning' | 'info' | 'danger';
+  tone?: 'warning' | 'info' | 'danger' | 'success';
 }) {
   const toneClass = {
     warning:
@@ -63,6 +63,8 @@ export function WarningBanner({
     info: 'border-sky-300/70 bg-sky-50 text-sky-900 dark:border-sky-500/40 dark:bg-sky-500/10 dark:text-sky-200',
     danger:
       'border-rose-300/70 bg-rose-50 text-rose-900 dark:border-rose-500/40 dark:bg-rose-500/10 dark:text-rose-200',
+    success:
+      'border-emerald-300/70 bg-emerald-50 text-emerald-900 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-200',
   }[tone];
 
   return (
@@ -102,6 +104,57 @@ export function SectionHeading({
         ) : null}
       </div>
       {action}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// 법령 검수 상태 표시
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * 규칙 데이터가 검수되지 않았을 때 반드시 노출해야 하는 문구입니다.
+ * (`isVerified === false` 인 모든 화면에서 이 문자열을 그대로 보여줍니다.)
+ */
+export const LEGAL_REVIEW_LABEL = '▲ 법령 원문 검수 필요';
+
+/**
+ * 규칙 테이블의 검수 여부를 표시합니다.
+ * isVerified 가 true 이면 아무것도 그리지 않습니다.
+ */
+export function VerificationNotice({
+  isVerified,
+  note,
+  compact = false,
+}: {
+  isVerified: boolean;
+  note?: string;
+  compact?: boolean;
+}) {
+  if (isVerified) return null;
+
+  if (compact) {
+    return (
+      <span className="inline-flex items-center rounded-md border border-amber-300/70 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
+        {LEGAL_REVIEW_LABEL}
+      </span>
+    );
+  }
+
+  return (
+    <WarningBanner title={LEGAL_REVIEW_LABEL}>
+      <p>{note ?? '규칙 테이블이 아직 검수되지 않았습니다. 금액은 참고용이며 법령 원문 대조가 필요합니다.'}</p>
+      <p>세무사가 조특법 원문과 대조한 뒤에 신고 자료로 사용하세요.</p>
+    </WarningBanner>
+  );
+}
+
+/** 라벨/값 한 줄 (Modal·Drawer 안에서 사용) */
+export function InfoRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex items-start justify-between gap-3 border-b border-border/60 py-1.5 last:border-b-0">
+      <span className="shrink-0 text-xs text-muted-foreground">{label}</span>
+      <span className="text-right text-xs font-medium">{children}</span>
     </div>
   );
 }

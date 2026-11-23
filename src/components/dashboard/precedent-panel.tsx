@@ -1,10 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Loader2, Search } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Maximize2, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -13,9 +10,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ApiRequestError, searchPrecedents } from '@/lib/api-client';
-import type { CompanyProfile, EmployeeRecord, RagPrecedentResponse } from '@/schemas';
-import { EmptyState, WarningBanner, formatWon, SectionHeading } from './ui-bits';
+import type { CompanyProfile, EmployeeRecord } from '@/schemas';
+import { PrecedentResult } from './precedent-result';
+import { EmptyState } from './ui-bits';
+import { usePrecedents } from './use-precedents';
 
 const SPECIAL_LABEL: Record<EmployeeRecord['specialFlag'], string> = {
   NONE: '일반',
@@ -25,69 +23,32 @@ const SPECIAL_LABEL: Record<EmployeeRecord['specialFlag'], string> = {
   REHIRED_SAME_YEAR: '연내 재입사',
 };
 
+/**
+ * 예규 검색 탭 본문.
+ * Drawer 와 동일한 훅/결과 컴포넌트를 사용하므로 표시 내용이 어긋나지 않습니다.
+ */
 export function PrecedentPanel({
   employees,
   company,
   selectedEmployeeId,
   onSelectEmployee,
+  onOpenDrawer,
 }: {
   employees: EmployeeRecord[];
   company: CompanyProfile;
   selectedEmployeeId: string | null;
   onSelectEmployee: (employeeId: string | null) => void;
+  onOpenDrawer?: (employeeId: string) => void;
 }) {
   const candidates = employees.filter((employee) => employee.specialFlag !== 'NONE');
+  const selected =
+    candidates.find((employee) => employee.employeeId === selectedEmployeeId) ?? null;
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [data, setData] = useState<RagPrecedentResponse | null>(null);
-
-  const selected = candidates.find((employee) => employee.employeeId === selectedEmployeeId) ?? null;
-
-  useEffect(() => {
-    if (!selected) {
-      setData(null);
-      setError(null);
-      return;
-    }
-
-    const controller = new AbortController();
-    let active = true;
-
-    setLoading(true);
-    setError(null);
-
-    searchPrecedents(
-      {
-        specialFlag: selected.specialFlag as Exclude<EmployeeRecord['specialFlag'], 'NONE'>,
-        specialNote: selected.specialNote,
-        targetYear: company.targetYear,
-        companySize: company.size,
-      },
-      { signal: controller.signal },
-    )
-      .then((response) => {
-        if (!active) return;
-        setData(response);
-      })
-      .catch((caught: unknown) => {
-        if (!active) return;
-        setError(
-          caught instanceof ApiRequestError
-            ? caught.message
-            : '예규 검색 중 오류가 발생했습니다.',
-        );
-        setData(null);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-
-    return () => {
-      active = false;
-      controller.abort();
-    };
-  }, [selected, company.targetYear, company.size]);
+  const { data, loading, error, reload } = usePrecedents({
+    employee: selected,
+    company,
+    enabled: true,
+  });
 
   if (candidates.length === 0) {
     return (
@@ -99,12 +60,7 @@ export function PrecedentPanel({
   }
 
   return (
-    <div className="space-y-4">
-      <SectionHeading
-        title="관련 예규·법령 검색 (Track B)"
-        description="AI가 최종 판정을 내리지 않습니다. 검색된 예규를 근거로 세무사가 직접 판단합니다."
-      />
-
+    <div className="space-y-3">
       <div className="flex flex-wrap items-end gap-3">
         <div className="min-w-64 space-y-1.5">
           <Label className="text-xs">검토할 직원</Label>
@@ -131,14 +87,24 @@ export function PrecedentPanel({
           </Select>
         </div>
 
-        {selected ? (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={reload}
+          disabled={!selected || loading}
+        >
+          <RotateCcw />
+          다시 검색
+        </Button>
+
+        {selected && onOpenDrawer ? (
           <Button
             variant="outline"
-            onClick={() => onSelectEmployee(selected.employeeId)}
-            disabled={loading}
+            size="sm"
+            onClick={() => onOpenDrawer(selected.employeeId)}
           >
-            {loading ? <Loader2 className="animate-spin" /> : <Search />}
-            다시 검색
+            <Maximize2 />
+            크게 보기
           </Button>
         ) : null}
       </div>
@@ -149,56 +115,7 @@ export function PrecedentPanel({
         </p>
       ) : null}
 
-      {error ? (
-        <WarningBanner title="예규 검색 실패" tone="danger">
-          <p>{error}</p>
-        </WarningBanner>
-      ) : null}
-
-      {loading ? (
-        <p className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
-          <Loader2 className="animate-spin" />
-          예규 지식베이스를 검색하는 중…
-        </p>
-      ) : null}
-
-      {!loading && data ? (
-        <div className="space-y-3">
-          <WarningBanner title="검색된 쟁점" tone="info">
-            <p>{data.exceptionReason}</p>
-          </WarningBanner>
-
-          {data.precedents.length === 0 ? (
-            <WarningBanner title="관련 예규를 찾지 못했습니다">
-              <p>
-                신뢰도 기준(0.60)을 넘는 예규가 없습니다. 국세법령정보시스템에서 직접 확인하세요.
-              </p>
-            </WarningBanner>
-          ) : (
-            data.precedents.map((precedent) => (
-              <Card key={precedent.docId}>
-                <CardHeader>
-                  <CardTitle className="flex flex-wrap items-center gap-2">
-                    {precedent.title}
-                    <Badge variant="secondary">
-                      관련도 {Math.round(precedent.relevanceScore * 100)}%
-                    </Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 text-sm">
-                  <p className="leading-relaxed">{precedent.summary}</p>
-                  <p className="font-mono text-xs text-muted-foreground">{precedent.docId}</p>
-                  <p className="text-xs text-muted-foreground">{precedent.citation}</p>
-                </CardContent>
-              </Card>
-            ))
-          )}
-
-          <p className="text-xs text-muted-foreground">
-            ※ 예규는 참고 자료입니다. 최종 판단과 책임은 세무사에게 있습니다.
-          </p>
-        </div>
-      ) : null}
+      <PrecedentResult loading={loading} error={error} data={data} onRetry={reload} />
     </div>
   );
 }

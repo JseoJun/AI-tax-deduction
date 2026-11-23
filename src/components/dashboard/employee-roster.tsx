@@ -13,7 +13,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import type { EmployeeJudgment, EmployeeRecord } from '@/schemas';
-import { formatCount, SectionHeading } from './ui-bits';
+import { formatCount, SectionHeading, WarningBanner } from './ui-bits';
 
 const CATEGORY_LABEL: Record<EmployeeJudgment['category'], string> = {
   YOUTH_PREFERRED: '청년',
@@ -52,10 +52,13 @@ type FilterKey = 'ALL' | EmployeeJudgment['category'];
 export function EmployeeRoster({
   employees,
   judgments,
+  importWarnings = [],
   onSearchPrecedent,
 }: {
   employees: EmployeeRecord[];
   judgments: EmployeeJudgment[];
+  /** 엑셀 업로드 직후 넘어온 행 단위 경고 (건너뛴 행 등) */
+  importWarnings?: string[];
   onSearchPrecedent: (employee: EmployeeRecord) => void;
 }) {
   const [filter, setFilter] = useState<FilterKey>('ALL');
@@ -91,6 +94,20 @@ export function EmployeeRoster({
         title="직원 명부"
         description={`총 ${formatCount(employees.length)} · 청년 ${counts.YOUTH_PREFERRED}명 · 일반 ${counts.GENERAL}명 · 제외 ${counts.EXCLUDED}명 · 검토 필요 ${counts.NEEDS_REVIEW}명`}
       />
+
+      {importWarnings.length > 0 ? (
+        <WarningBanner title={`엑셀에서 확인이 필요한 행 ${importWarnings.length}건`}>
+          <ul className="list-inside list-disc space-y-0.5">
+            {importWarnings.slice(0, 5).map((warning) => (
+              <li key={warning}>{warning}</li>
+            ))}
+            {importWarnings.length > 5 ? (
+              <li>… 외 {importWarnings.length - 5}건</li>
+            ) : null}
+          </ul>
+          <p>해당 행은 명부에서 제외되었습니다. 엑셀 원본을 수정한 뒤 다시 업로드하세요.</p>
+        </WarningBanner>
+      ) : null}
 
       <div className="flex flex-wrap gap-1.5">
         {(
