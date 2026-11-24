@@ -24,7 +24,7 @@ import {
 } from './ui-bits';
 
 const CHANGE_LABEL: Record<'NEW_HIRE' | 'RESIGNED' | 'MODIFIED', string> = {
-  NEW_HIRE: '신규 입사',
+  NEW_HIRE: '명부 추가',
   RESIGNED: '명부 제외',
   MODIFIED: '정보 변경',
 };
@@ -96,13 +96,14 @@ export function RosterDiffPanel({
         <>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard
-              label="직전 명부 인원"
-              value={formatCount(previousResult?.currCount ?? previousRoster.length)}
-              hint="비교 기준"
+              label="직전 명부 산정 인원"
+              value={previousResult ? formatCount(previousResult.currCount) : '-'}
+              hint={`직전 명부 전체 ${formatCount(previousRoster.length)} · 산출 기준`}
             />
             <StatCard
-              label="현재 명부 인원"
+              label="현재 명부 산정 인원"
               value={formatCount(result.currCount)}
+              hint={`현재 명부 전체 ${formatCount(employees.length)} · 산출 기준`}
               tone={
                 previousResult && result.currCount !== previousResult.currCount
                   ? result.currCount > previousResult.currCount
@@ -180,7 +181,9 @@ export function RosterDiffPanel({
                       <TableCell className="font-medium">{change.name}</TableCell>
                       <TableCell className="font-mono text-xs">{change.employeeId}</TableCell>
                       <TableCell className="whitespace-normal text-xs text-muted-foreground">
-                        {change.detail}
+                        {change.changeType === 'NEW_HIRE'
+                          ? `입사일: ${employees.find((employee) => employee.employeeId === change.employeeId)?.hireDate ?? '-'}`
+                          : change.detail}
                       </TableCell>
                     </TableRow>
                   ))}
