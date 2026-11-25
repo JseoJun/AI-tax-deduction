@@ -8,7 +8,7 @@ import type { CompanyProfile, EmployeeRecord } from '@/schemas';
 export const defaultCompanyProfile: CompanyProfile = {
   id: 'company-demo-001',
   name: '(주)공제레이더',
-  region: 'non_capital',
+  region: 'capital',
   size: 'sme',
   industry: '제조업',
   targetYear: 2026,

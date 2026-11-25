@@ -1,5 +1,5 @@
 import type { CompanyProfile, EmployeeRecord } from '@/schemas';
-import { CompanyProfileSchema, EmployeeListSchema } from '@/schemas/employee';
+import { CompanyProfileSchema, EmployeeListSchema } from '@/schemas';
 
 /**
  * 브라우저 localStorage 저장소.

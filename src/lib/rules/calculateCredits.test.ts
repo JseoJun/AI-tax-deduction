@@ -63,10 +63,10 @@ describe('공제액 계산 (mock 27명)', () => {
   });
 
   it('1·2·3년차 공제액을 계산한다', () => {
-    expect(result.yearlyCredits[0]).toBe(14_500_000);
-    expect(result.yearlyCredits[1]).toBe(14_500_000);
-    expect(result.yearlyCredits[2]).toBe(7_250_000);
-    expect(result.totalCredit).toBe(36_250_000);
+    expect(result.yearlyCredits[0]).toBe(7_000_000);
+    expect(result.yearlyCredits[1]).toBe(16_000_000);
+    expect(result.yearlyCredits[2]).toBe(17_000_000);
+    expect(result.totalCredit).toBe(40_000_000);
   });
 
   it('검증되지 않은 규칙임을 표시한다', () => {
@@ -84,8 +84,8 @@ describe('시뮬레이션', () => {
     });
 
     expect(simulation.simulated.currCount).toBe(21);
-    expect(simulation.deltaTotalCredit).toBe(72_500_000);
-    expect(simulation.baseline.totalCredit).toBe(36_250_000);
+    expect(simulation.deltaTotalCredit).toBe(80_000_000);
+    expect(simulation.baseline.totalCredit).toBe(40_000_000);
   });
 
   it('순증가가 0이 되면 공제액도 0이 된다', () => {
@@ -97,7 +97,7 @@ describe('시뮬레이션', () => {
     });
 
     expect(simulation.simulated.totalCredit).toBe(0);
-    expect(simulation.deltaTotalCredit).toBe(-36_250_000);
+    expect(simulation.deltaTotalCredit).toBe(-40_000_000);
   });
 });
 
